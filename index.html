@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>潮汕親屬稱謂計算器</title>
+    <style>
+        /* 引入自定義字體 */
+        @font-face {
+            font-family: 'ShangguSerif';
+            src: url('fonts/ShangguSerif-ExtraLight.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        :root {
+            --bg-color: #f0f2f5;
+            --calculator-bg: #ffffff;
+            --display-bg: #f9f9f9;
+            --text-color: #333;
+            --result-color: #d9534f;
+            --button-bg: #e9ecef;
+            --button-hover-bg: #dee2e6;
+            --operator-bg: #adb5bd;
+            --operator-hover-bg: #9fa8b1;
+            --equal-bg: #007bff;
+            --equal-hover-bg: #0069d9;
+        }
+
+        /* 深色模式變數 */
+        body.dark-mode {
+            --bg-color: #121212;
+            --calculator-bg: #1f1f1f;
+            --display-bg: #2d2d2d;
+            --text-color: #e0e0e0;
+            --result-color: #ff6b6b;
+            --button-bg: #363636;
+            --button-hover-bg: #4a4a4a;
+            --operator-bg: #616161;
+            --operator-hover-bg: #757575;
+            --equal-bg: #4da6ff;
+            --equal-hover-bg: #3385ff;
+        }
+
+        /* 自動匹配系統主題 */
+        @media (prefers-color-scheme: dark) {
+            body:not(.light-mode) {
+                --bg-color: #121212;
+                --calculator-bg: #1f1f1f;
+                --display-bg: #2d2d2d;
+                --text-color: #e0e0e0;
+                --result-color: #ff6b6b;
+                --button-bg: #363636;
+                --button-hover-bg: #4a4a4a;
+                --operator-bg: #616161;
+                --operator-hover-bg: #757575;
+                --equal-bg: #4da6ff;
+                --equal-hover-bg: #3385ff;
+            }
+        }
+        
+        /* 針對帶音標亓文字進行微調 */
+        ruby rt {
+            font-size: 0.5em; /* 調整注音大小 */
+            line-height: 1;
+            color: #888;
+        }
+
+        body {
+            font-family: 'ShangguSerif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            perspective: 1000px;
+            transition: background-color 0.3s, color 0.3s;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        .calculator-container {
+            width: 100%;
+            max-width: 375px;
+            min-height: 630px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+        
+        .calculator-container.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .calculator, .info-page {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            backface-visibility: hidden;
+            background-color: var(--calculator-bg);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        
+        .info-page {
+            transform: rotateY(180deg);
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .theme-toggle-btn, .info-toggle-btn, .back-btn {
+            position: absolute;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            color: var(--text-color);
+            transition: color 0.3s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .theme-toggle-btn {
+            top: 25px;
+            right: 25px;
+        }
+        .info-toggle-btn {
+            top: 25px;
+            left: 25px;
+        }
+        .back-btn {
+            top: 25px;
+            left: 25px;
+            z-index: 10;
+        }
+
+        .theme-toggle-btn:hover, .info-toggle-btn:hover, .back-btn:hover {
+            opacity: 0.8;
+        }
+
+        h1 {
+            font-size: 24px;
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+
+        .display {
+            background-color: var(--display-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            word-wrap: break-word;
+            /* 這裡是新亓固定高度設定 */
+            min-height: 180px; 
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: background-color 0.3s;
+        }
+
+        #input-display {
+            font-family: 'ShangguSerif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 18px;
+            color: #6c757d;
+            margin-bottom: 15px; /* 調整底部間距 */
+            min-height: 25px;
+            text-align: left; /* 靠左對齊 */
+            word-break: break-all;
+        }
+        
+        body.dark-mode #input-display {
+            color: #a0a0a0;
+        }
+
+        #result-display {
+            font-family: 'ShangguSerif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 30px;
+            font-weight: bold;
+            color: var(--result-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: flex-start; /* 靠左對齊 */
+            text-align: left; /* 靠左對齊 */
+            line-height: 1.2;
+            padding-bottom: 10px; /* 增加底部內邊距 */
+        }
+        
+        #result-display .result-line {
+            font-size: 16px;
+            color: #555;
+            font-weight: normal;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body.dark-mode #result-display .result-line {
+            color: #a0a0a0;
+        }
+
+        #result-display .result-main {
+            font-size: 30px;
+            color: var(--result-color);
+            margin: 0;
+            padding: 0;
+        }
+        
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: auto;
+        }
+
+        .btn {
+            font-family: 'ShangguSerif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            padding: 18px 0;
+            cursor: pointer;
+            background-color: var(--button-bg);
+            color: var(--text-color);
+            transition: background-color 0.2s, transform 0.1s, color 0.3s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn:hover {
+            background-color: var(--button-hover-bg);
+        }
+        
+        .btn:active {
+            transform: scale(0.96);
+        }
+
+        .btn.operator {
+            background-color: var(--operator-bg);
+            color: white;
+        }
+        .btn.operator:hover {
+            background-color: var(--operator-hover-bg);
+        }
+
+        .btn.equal {
+            background-color: var(--equal-bg);
+            color: white;
+            grid-column: 3 / span 2;
+        }
+        .btn.equal:hover {
+            background-color: var(--equal-hover-bg);
+        }
+        
+        .info-page-content h2 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: var(--text-color);
+        }
+        .info-page-content p {
+            font-size: 16px;
+            line-height: 1.6;
+            color: var(--text-color);
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="calculator-container" id="calculator-container">
+        
+        <div class="calculator">
+            <button class="info-toggle-btn" id="info-toggle" aria-label="顯示資訊">ℹ️</button>
+            <button class="theme-toggle-btn" id="theme-toggle" aria-label="切換深色模式">🌙</button>
+            <h1>潮汕親屬稱謂計算器</h1>
+            <div class="display">
+                <div id="input-display">我</div>
+                <div id="result-display"></div>
+            </div>
+            <div class="buttons">
+                <button class="btn operator" data-value="清空">清空</button>
+                <button class="btn" data-value="爸">爸</button>
+                <button class="btn" data-value="媽">媽</button>
+                <button class="btn operator" data-value="退格">←</button>
+                <button class="btn" data-value="兄">兄</button>
+                <button class="btn" data-value="弟">弟</button>
+                <button class="btn" data-value="姐">姐</button>
+                <button class="btn" data-value="妹">妹</button>
+                <button class="btn" data-value="夫">夫</button>
+                <button class="btn" data-value="妻">妻</button>
+                <button class="btn" data-value="子">子</button>
+                <button class="btn" data-value="女">女</button>
+                <button class="btn equal" data-value="=">計算</button>
+            </div>
+        </div>
+
+        <div class="info-page">
+            <button class="back-btn" id="back-toggle" aria-label="返回計算器">←</button>
+            <div class="info-page-content">
+                <h2>潮汕親屬稱謂計算器</h2>
+                <p><strong>版本：</strong> V1.0 </p>
+                <p><strong>作者：</strong> <a href="https://space.bilibili.com/502920505" target="_blank" style="color: yellow;">沙茶ちゃん</a></p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const calculatorContainer = document.getElementById('calculator-container');
+            const inputDisplay = document.getElementById('input-display');
+            const resultDisplay = document.getElementById('result-display');
+            const buttons = document.querySelector('.buttons');
+            const themeToggleBtn = document.getElementById('theme-toggle');
+            const infoToggleBtn = document.getElementById('info-toggle');
+            const backToggleBtn = document.getElementById('back-toggle');
+
+            let currentInput = ['我'];
+
+            const pronunciationData = {
+                '爸': 'pā', '媽': 'mā', '兄': 'hiann', '弟': 'ti', '姐': 'ce', '妹': 'mue',
+                '夫': '', '妻': 'chi', '子': 'cur', '女': '', '我': 'wá',
+            };
+            
+            const kinshipMap = new Map();
+            kinshipMap.set('爸', { self: '阿爹 / 阿伯 / 阿叔', reverse: '子' });
+            kinshipMap.set('媽', { self: '阿娘 / 阿姆 / 阿姨', reverse: '子' });
+            kinshipMap.set('兄', { self: '阿兄', reverse: '弟' });
+            kinshipMap.set('弟', { self: '阿弟', reverse: '兄' });
+            kinshipMap.set('姐', { self: '阿姐', reverse: '妹' });
+            kinshipMap.set('妹', { self: '阿妹', reverse: '姐' });
+            kinshipMap.set('夫', { self: '阿老 / 翁 / 老翁', reverse: '妻' });
+            kinshipMap.set('妻', { self: '阿老 / 老婆 / 嬷', reverse: '夫' });
+            kinshipMap.set('子', { self: '逗仔 / 阿奴 / 阿弟', reverse: '爸 / 媽' });
+            kinshipMap.set('女', { self: '走仔 / 阿妹', reverse: '爸 / 媽' });
+
+            const invalidRelationships = [
+                '夫亓夫',
+                '妻亓妻'
+            ];
+
+            const simplificationRules = {
+                '兄亓兄': '兄',
+                '弟亓弟': '弟',
+                '姐亓姐': '姐',
+                '妹亓妹': '妹',
+                '兄亓弟': '弟',
+                '弟亓兄': '兄',
+                '姐亓妹': '妹',
+                '妹亓姐': '姐',
+            };
+
+            const relationshipSolver = {
+                '我': { self: '我', reverse: '我' },
+                '夫亓妻': { self: '我', reverse: '我' }, '夫亓爸': { self: '爸', reverse: '新妇' },
+                '妻亓夫': { self: '我', reverse: '我' }, '妻亓爸': { self: '', reverse: '婿' },
+                '爸亓爸': { self: '公', reverse: '孙' },
+                '爸亓妈': { self: '嬤', reverse: '孙' },
+                '爸亓兄': { self: '伯', reverse: '' }, '爸亓兄亓爸': { self: '伯公', reverse: '' }, '爸亓兄亓媽': { self: '嬤', reverse: '' }, '爸亓兄亓妻': { self: '姆', reverse: '' },
+                '爸亓弟': { self: '叔', reverse: '' }, '爸亓弟亓爸': { self: '伯公', reverse: '' }, '爸亓弟亓媽': { self: '嬤', reverse: '' }, '爸亓弟亓妻': { self: '嬸', reverse: '' },
+                '爸亓姐': { self: '姑', reverse: '' }, '爸亓妹': { self: '阿姑', reverse: '姨姪' },
+                '爸亓姐亓夫': { self: '丈', reverse: '姨姪' }, '爸亓妹亓夫': { self: '阿丈 / 丈', reverse: '姨姪' },
+                '媽亓兄': { self: '舅舅', reverse: '外甥' }, '媽亓弟': { self: '舅舅', reverse: '外甥' },
+                '媽亓兄亓妻': { self: '妗', reverse: '外甥' }, '媽亓弟亓妻': { self: '妗', reverse: '外甥' },
+                '媽亓姐': { self: '姨', reverse: '姨甥' }, '媽亓妹': { self: '姨', reverse: '姨甥' },
+                '妻亓爸': { self: '丈人 / 丈人公', reverse: '女婿' }, '妻亓媽': { self: '丈母 / 丈母婆', reverse: '女婿' },
+                '妻亓兄': { self: '妻舅 / 阿舅', reverse: '姐夫' }, '妻亓弟': { self: '妻舅 / 阿舅', reverse: '姐夫' },
+                '妻亓兄亓妻': { self: '妻妗 / 阿妗', reverse: '姐夫' }, '妻亓弟亓妻': { self: '妻妗 / 阿妗', reverse: '姐夫' },
+                '妻亓姐': { self: '妻姨 / 阿姨', reverse: '妹夫' }, '妻亓妹': { self: '妻姨 / 阿姨', reverse: '妹夫' },
+                '兄亓妻': { self: '阿嫂', reverse: '小叔 / 小姑' }, '弟亓妻': { self: '弟婦', reverse: '大伯 / 大姑' },
+                '姐亓夫': { self: '姐夫', reverse: '小舅子 / 大舅子' }, '妹亓夫': { self: '妹夫 / 妹婿', reverse: '小舅子 / 大舅子' },
+                '子亓妻': { self: '心哺', reverse: '公公 / 婆婆' }, '女亓夫': { self: '阿郎 / 仔婿', reverse: '岳父 / 岳母' },
+                '祖父': { self: '阿公', reverse: '孫兒' }, '祖母': { self: '阿媽', reverse: '孫兒' },
+                '外祖父': { self: '外公', reverse: '外孫' }, '外祖母': { self: '外媽', reverse: '外孫' },
+                '孫': { self: '逗孫 / 仔孫', reverse: '阿公 / 阿媽' },
+                '孫女': { self: '走孫 / 阿妹仔', reverse: '阿公 / 阿媽' },
+                '外孫': { self: '外孫', reverse: '外公 / 外婆' },
+                '外孫女': { self: '外孫女', reverse: '外公 / 外婆' },
+                '曾孫': { self: '逗曾孫', reverse: '太公 / 太媽' },
+                '曾孫女': { self: '走曾孫', reverse: '太公 / 太媽' },
+                '玄孫': { self: '逗玄孫', reverse: '阿祖' },
+                
+                
+            };
+
+            const formatWithRuby = (text, pinyin) => {
+                let formattedHtml = '';
+                const words = text.split(' / ');
+                const pinyins = pinyin.split(' / ');
+                words.forEach((word, index) => {
+                    if (word.trim()) {
+                        const wordPinyin = pinyins[index] || '';
+                        formattedHtml += `<ruby>${word}<rt>${wordPinyin}</rt></ruby>`;
+                        if (index < words.length - 1) {
+                            formattedHtml += ' / ';
+                        }
+                    }
+                });
+                return formattedHtml;
+            };
+
+            const updateDisplay = () => {
+                let formattedInput = '我';
+                if (currentInput.length > 1) {
+                    formattedInput = currentInput.join('亓');
+                }
+                inputDisplay.textContent = formattedInput;
+            };
+            
+            const findRelationship = (inputChain) => {
+                const chainString = inputChain.slice(1).join('亓');
+                
+                // 1. 無效關係檢查
+                for (const invalidRule of invalidRelationships) {
+                    if (chainString.includes(invalidRule)) {
+                        return { error: '無變顯示同性關係' };
+                    }
+                }
+
+                // 2. 層數檢查
+                if (inputChain.length - 1 > 5) {
+                    return { error: '過長就找毋着哇!' };
+                }
+
+                // 3. 簡化處理
+                let simplifiedString = chainString;
+                let hasSimplified = true;
+                
+                while (hasSimplified) {
+                    hasSimplified = false;
+                    for (const rule in simplificationRules) {
+                        if (simplifiedString.includes(rule)) {
+                            simplifiedString = simplifiedString.replace(rule, simplificationRules[rule]);
+                            hasSimplified = true;
+                            break; 
+                        }
+                    }
+                }
+
+                // 4. 精確匹配
+                if (relationshipSolver[simplifiedString]) {
+                    const result = relationshipSolver[simplifiedString];
+                    return {
+                        self: result.self,
+                        reverse: result.reverse,
+                        selfPinyin: pronunciationData[result.self] || '',
+                        reversePinyin: pronunciationData[result.reverse] || ''
+                    };
+                }
+                
+                // 5. 通用匹配 (單層關係)
+                if (kinshipMap.has(simplifiedString)) {
+                    const data = kinshipMap.get(simplifiedString);
+                    return {
+                        self: data.self,
+                        reverse: data.reverse,
+                        selfPinyin: pronunciationData[data.self] || '',
+                        reversePinyin: pronunciationData[data.reverse] || ''
+                    };
+                }
+
+                // 6. 最終錯誤
+                return { error: '過長就找毋着哇!' };
+            };
+
+            const calculate = () => {
+                if (currentInput.length <= 1) {
+                    resultDisplay.innerHTML = '';
+                    return;
+                }
+
+                const result = findRelationship(currentInput);
+
+                if (result.error) {
+                    resultDisplay.innerHTML = `<div class="result-main">${result.error}</div>`;
+                } else {
+                    const selfCallText = result.self;
+                    const reverseCallText = result.reverse;
+                    const selfPinyin = result.selfPinyin || pronunciationData[selfCallText] || '';
+                    const reversePinyin = result.reversePinyin || pronunciationData[reverseCallText] || '';
+                    
+                    resultDisplay.innerHTML = `
+                        <div class="result-line">我稱呼對方：</div>
+                        <div class="result-main">${formatWithRuby(selfCallText, selfPinyin)}</div>
+                        <div class="result-line">對方稱呼我：</div>
+                        <div class="result-main">${formatWithRuby(reverseCallText, reversePinyin)}</div>
+                    `;
+                }
+            };
+            
+            const clear = () => {
+                currentInput = ['我'];
+                updateDisplay();
+                resultDisplay.innerHTML = '';
+            };
+
+            const backspace = () => {
+                if (currentInput.length > 1) {
+                    currentInput.pop();
+                    updateDisplay();
+                }
+            };
+
+            buttons.addEventListener('click', (event) => {
+                if (!event.target.classList.contains('btn')) return;
+
+                const value = event.target.dataset.value;
+
+                switch (value) {
+                    case '=':
+                        calculate();
+                        break;
+                    case '清空':
+                        clear();
+                        break;
+                    case '退格':
+                        backspace();
+                        break;
+                    default:
+                        currentInput.push(value);
+                        updateDisplay();
+                        resultDisplay.innerHTML = '';
+                        break;
+                }
+            });
+
+            const toggleDarkMode = () => {
+                const isDarkMode = document.body.classList.toggle('dark-mode');
+                if (isDarkMode) {
+                    document.body.classList.remove('light-mode');
+                    themeToggleBtn.textContent = '☀️';
+                } else {
+                    document.body.classList.add('light-mode');
+                    themeToggleBtn.textContent = '🌙';
+                }
+                localStorage.setItem('darkMode', isDarkMode);
+            };
+
+            themeToggleBtn.addEventListener('click', toggleDarkMode);
+            infoToggleBtn.addEventListener('click', () => {
+                calculatorContainer.classList.add('flipped');
+            });
+            backToggleBtn.addEventListener('click', () => {
+                calculatorContainer.classList.remove('flipped');
+            });
+
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const savedMode = localStorage.getItem('darkMode');
+
+            if (savedMode === 'true' || (savedMode === null && prefersDark)) {
+                document.body.classList.add('dark-mode');
+                themeToggleBtn.textContent = '☀️';
+            } else {
+                document.body.classList.add('light-mode');
+                themeToggleBtn.textContent = '🌙';
+            }
+
+            clear();
+        });
+    </script>
+</body>
+</html>
